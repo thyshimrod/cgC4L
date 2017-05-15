@@ -81,7 +81,10 @@ while True:
     sample_count = int(input())
     for i in range(sample_count):
         tempSampleData = SampleData()
+        #test= input()
+        #print(test,file=sys.stderr)
         sample_id, carried_by, rank, expertise_gain, health, cost_a, cost_b, cost_c, cost_d, cost_e = input().split()
+        #sample_id, carried_by, rank, expertise_gain, health, cost_a, cost_b, cost_c, cost_d, cost_e = test.split()
         sample_id = int(sample_id)
         carried_by = int(carried_by)
         rank = int(rank)
@@ -107,12 +110,18 @@ while True:
     # To debug: print("Debug messages...", file=sys.stderr)
     print(plInstance.target,file=sys.stderr)
     if plInstance.target == 'DIAGNOSIS':
-
-        sample = SampleData.getBestSample(plInstance.samples)
-        if sample != None:
-            print("CONNECT " + str(sample.id))
-        else:
-            print("GOTO MOLECULES")
+        action=False
+        for sample in plInstance.samples:
+            if sample.cost['A'] == -1:
+                print("CONNECT " + str(sample.id))
+                action=True
+                break
+        if action == False:
+            sample = SampleData.getBestSample(plInstance.samples)
+            if sample != None:
+                print("CONNECT " + str(sample.id))
+            else:
+                print("GOTO MOLECULES")
 
     elif plInstance.target == 'MOLECULES':
         grabMolecules = False
@@ -136,9 +145,14 @@ while True:
         if len(plInstance.samples)>0:
             print("CONNECT " + str(plInstance.samples[0].id))
         else:
-            print("GOTO DIAGNOSIS")
+            print("GOTO SAMPLES")
+    elif plInstance.target == "SAMPLES":
+        if len(plInstance.samples)>0:
+            print ("GOTO DIAGNOSIS")
+        else:
+            print ("CONNECT 1")
     elif plInstance.target == 'START_POS':
-        print("GOTO DIAGNOSIS")
+        print("GOTO SAMPLES ")
 
 
 
