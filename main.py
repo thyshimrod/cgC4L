@@ -10,10 +10,32 @@ class Player:
         self.target=''
         self.samples=[]
 
+    def addSample(self,_sample):
+        localStorage=self.storage.copy()
+        for s in self.samples:
+            for c in s.cost:
+                localStorage[c]-=s.cost[c]
+
+        goOn=True
+        for c in _sample.cost:
+            if localStorage[c] < _sample.cost[c]:
+                goOn=False
+                break
+        if goOn:
+            _sample.status ="COMPLETED"
+        self.samples.append(_sample)
+
+    @staticmethod
     def getInstance():
-        if Player.instance==None:
+        if Player.instance is None:
             Player.instance = Player()
         return Player.instance
+
+    def getExpertiseVal(self):
+        val = 0
+        for _expertise in self.expertise:
+            val+=self.expertise[_expertise]
+        return val
 
 class SampleData:
     listOfInstance=[]
@@ -21,6 +43,7 @@ class SampleData:
         self.id = 0
         self.carriedBy=0
         self.health = 0
+        self.status = "INPROGRESS"
         self.cost={'A':0,'B':0,'C':0,'D':0,'E':0}
 
     @staticmethod
@@ -36,7 +59,7 @@ class SampleData:
         foundSample=None
         for sample in SampleData.listOfInstance:
             if sample not in listOfSample and sample.carriedBy==-1:
-                if foundSample == None  or foundSample.health < sample.health :
+                if foundSample is None  or foundSample.health < sample.health :
                     total = 0
                     for c in sample.cost:
                         total+=sample.cost[c]
@@ -111,7 +134,8 @@ while True:
         tempSampleData.carriedBy = carried_by
         SampleData.listOfInstance.append(tempSampleData)
         if carried_by == 0:
-            plInstance.samples.append(tempSampleData)
+            #plInstance.samples.append(tempSampleData)
+            plInstance.addSample(tempSampleData)
             print("////" + str(tempSampleData.cost),file=sys.stderr)
 
     # Write an action using print
@@ -132,32 +156,38 @@ while True:
                 print("GOTO MOLECULES")
 
     elif plInstance.target == 'MOLECULES':
-        grabMolecules = False
-        tab= {'A':0,'B':0,'C':0,'D':0,'E':0}
-        for sample in plInstance.samples:
-            for c in sample.cost:
-                tab[c]+=sample.cost[c]
-        for storage in plInstance.storage:
-            tab[storage]-=plInstance.storage[storage]
-        for expertise in plInstance.expertise:
-            tab[storage]-=plInstance.expertise[expertise]
-        allZero=True
-        for t in tab:
-            if tab[t] > 0:
-                allZero=False
-                print("@@@@ " + str(tab) ,file=sys.stderr)
-                print("#### " + str(molAvailable) + "/" + str(molAvailable[t]) + "/" + str(t),file=sys.stderr)
-                if molAvailable[t] > 0:
-                    print("llll " + str(t),file=sys.stderr)
-                    print("CONNECT " + str(t))
-                    grabMolecules = True
+        allZero = True
+        listOfMoleculesToGrab = {'A':0,'B':0,'C':0,'D':0,'E':0}
+        for _sample in plInstance.samples:
+            for c in _sample.cost:
+                listOfMoleculesToGrab[c]+=_sample.cost[c]
+        for mol in plInstance.storage:
+            listOfMoleculesToGrab[mol]-=plInstance.storage[mol]
+        for mol in plInstance.expertise:
+            listOfMoleculesToGrab[mol] -= plInstance.expertise[mol]
+            if listOfMoleculesToGrab[mol]>0:
+                allZero = False
+        grabMolecule = False
+        for mol in listOfMoleculesToGrab:
+            if listOfMoleculesToGrab[mol]>0:
+                if molAvailable[mol]>0:
+                    print ("CONNECT " + mol)
+                    grabMolecule = True
                     break
 
-        #print(tab,file=sys.stderr)
-        if grabMolecules == False and allZero==True:
+        if allZero:
             print("GOTO LABORATORY")
-        else:
-            print("WAIT")
+        elif not grabMolecule :
+            finishedOne = False
+            for _sample in plInstance.samples:
+                if _sample.status == "COMPLETED":
+                    finishedOne = True
+                    break
+            if finishedOne:
+                print("GOTO LABORATORY")
+            else:
+                print("WAIT")
+
 
     elif plInstance.target == 'LABORATORY':
         if len(plInstance.samples)>0:
