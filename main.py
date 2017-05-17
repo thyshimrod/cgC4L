@@ -6,6 +6,7 @@ class Player:
     def __init__(self):
         self.health=0
         self.storage = {'A':0,'B':0,'C':0,'D':0,'E':0}
+        self.expertise = {'A':0,'B':0,'C':0,'D':0,'E':0}
         self.target=''
         self.samples=[]
 
@@ -75,9 +76,15 @@ while True:
             plInstance.storage['C']=storage_c
             plInstance.storage['D']=storage_d
             plInstance.storage['E']=storage_e
+            plInstance.expertise['A']=expertise_a
+            plInstance.expertise['B']=expertise_b
+            plInstance.expertise['C']=expertise_c
+            plInstance.expertise['D']=expertise_d
+            plInstance.expertise['E']=expertise_e
             plInstance.target = target
 
     available_a, available_b, available_c, available_d, available_e = [int(i) for i in input().split()]
+    molAvailable={'A':available_a,'B':available_b,'C':available_c,'D':available_d,'E':available_e}
     sample_count = int(input())
     for i in range(sample_count):
         tempSampleData = SampleData()
@@ -105,6 +112,7 @@ while True:
         SampleData.listOfInstance.append(tempSampleData)
         if carried_by == 0:
             plInstance.samples.append(tempSampleData)
+            print("////" + str(tempSampleData.cost),file=sys.stderr)
 
     # Write an action using print
     # To debug: print("Debug messages...", file=sys.stderr)
@@ -116,7 +124,7 @@ while True:
                 print("CONNECT " + str(sample.id))
                 action=True
                 break
-        if action == False:
+        if action == False and len(plInstance.samples)<2:
             sample = SampleData.getBestSample(plInstance.samples)
             if sample != None:
                 print("CONNECT " + str(sample.id))
@@ -131,15 +139,25 @@ while True:
                 tab[c]+=sample.cost[c]
         for storage in plInstance.storage:
             tab[storage]-=plInstance.storage[storage]
+        for expertise in plInstance.expertise:
+            tab[storage]-=plInstance.expertise[expertise]
+        allZero=True
         for t in tab:
             if tab[t] > 0:
-                print("CONNECT " + t)
-                grabMolecules = True
-                break
+                allZero=False
+                print("@@@@ " + str(tab) ,file=sys.stderr)
+                print("#### " + str(molAvailable) + "/" + str(molAvailable[t]) + "/" + str(t),file=sys.stderr)
+                if molAvailable[t] > 0:
+                    print("llll " + str(t),file=sys.stderr)
+                    print("CONNECT " + str(t))
+                    grabMolecules = True
+                    break
 
         #print(tab,file=sys.stderr)
-        if grabMolecules == False:
+        if grabMolecules == False and allZero==True:
             print("GOTO LABORATORY")
+        else:
+            print("WAIT")
 
     elif plInstance.target == 'LABORATORY':
         if len(plInstance.samples)>0:
