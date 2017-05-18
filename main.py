@@ -253,7 +253,7 @@ while True:
                 goOut=False
                 break
         if goOut:
-            if len(plInstance.samples)>0:
+            if len(plInstance.samples)>1:
                 print("GOTO MOLECULES")
             elif SampleData.getNbFreeSample()>2:
                 print("GOTO DIAGNOSIS")
@@ -272,7 +272,7 @@ while True:
             print("CONNECT 2")
         #elif plInstance.nbSampleAnalyzed > 3 and len(plInstance.samples) > 1:
         else:
-            print("CONNECT 1")
+            print("CONNECT 2")
 
     elif plInstance.target == 'START_POS':
         print("GOTO SAMPLES ")
