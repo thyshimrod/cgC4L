@@ -61,6 +61,7 @@ class SampleData:
         self.carriedBy=0
         self.health = 0
         self.gain=0
+        self.rank=0
         self.status = "INPROGRESS"
         self.diagState = "NEW"
         self.cost={'A':0,'B':0,'C':0,'D':0,'E':0}
@@ -87,17 +88,21 @@ class SampleData:
         #print("nbMolRemaining" + str(nbMolRemaining),file=sys.stderr)
         foundSample=None
         for sampleID in SampleData.listOfInstance:
-
             sample = SampleData.listOfInstance[sampleID]
+            totalMol=-1
             print("BEST " + str(sampleID) + "//" + str(sample.carriedBy) + "//", file=sys.stderr)
             if sample not in listOfSample and sample.carriedBy==-1:
+                total = 0
+                for c in sample.cost:
+                    if sample.cost[c] > 0:
+                        total += sample.cost[c] - Player.getInstance().expertise[c]
                 if foundSample is None  or foundSample.health < sample.health :
-                    total = 0
-                    for c in sample.cost:
-                        if sample.cost[c] > 0:
-                            total+=sample.cost[c]-Player.getInstance().expertise[c]
-                    if total < nbMolRemaining:
+                    foundSample = sample
+                    totalMol = total
+                elif foundSample.health == sample.health:
+                    if total<totalMol or totalMol==-1:
                         foundSample = sample
+                        totalMol = total
         print("BEST2 " + str(foundSample), file = sys.stderr)
         return foundSample
 
@@ -167,6 +172,7 @@ while True:
         cost_c = int(cost_c)
         cost_d = int(cost_d)
         cost_e = int(cost_e)
+        tempSampleData.rank = rank
         tempSampleData.cost['A']=cost_a
         tempSampleData.cost['B']=cost_b
         tempSampleData.cost['C']=cost_c
@@ -175,13 +181,9 @@ while True:
         tempSampleData.health=health
         tempSampleData.id=sample_id
         tempSampleData.carriedBy = carried_by
-        #SampleData.listOfInstance.append(tempSampleData)
 
         if carried_by == 0:
-            #print("CARRIED " + str(sample_id) + "/" + str(plInstance.samples),file=sys.stderr)
-            #plInstance.samples.append(tempSampleData)
             plInstance.addSample(SampleData.listOfInstance[sample_id])
-            #print("////" + str(tempSampleData.cost) + str("//") + str(sample_id),file=sys.stderr)
 
     # Write an action using print
     # To debug: print("Debug messages...", file=sys.stderr)
@@ -197,23 +199,15 @@ while True:
                     break
 
             if not action:
-                sample = SampleData.getBestSample(plInstance.samples)
-                if sample is not None:
-                    print("CONNECT " + str(sample.id))
-                    sample.diagState = "INCLOUD"
+                if len(plInstance.samples)<3:
+                    sample = SampleData.getBestSample(plInstance.samples)
+                    if sample is not None:
+                        print("CONNECT " + str(sample.id))
+                        sample.diagState = "INCLOUD"
+                    else:
+                        print("GOTO MOLECULES")
                 else:
                     print("GOTO MOLECULES")
-                    # for sample in plInstance.samples:
-            #     if sample.cost['A'] == -1:
-            #         print("CONNECT " + str(sample.id))
-            #         action=True
-            #         break
-            # if action == False :#and len(plInstance.samples)<2:
-            #     sample = SampleData.getBestSample(plInstance.samples)
-            #     if sample != None:
-            #         print("CONNECT " + str(sample.id))
-            #     else:
-            #         print("GOTO MOLECULES")
         else:
             print("WAIT")
     elif plInstance.target == 'MOLECULES':
@@ -259,7 +253,9 @@ while True:
                 goOut=False
                 break
         if goOut:
-            if SampleData.getNbFreeSample()>2:
+            if len(plInstance.samples)>0:
+                print("GOTO MOLECULES")
+            elif SampleData.getNbFreeSample()>2:
                 print("GOTO DIAGNOSIS")
             else:
                 print("GOTO SAMPLES")
@@ -272,7 +268,7 @@ while True:
             print("CONNECT 2")
         elif plInstance.nbSampleAnalyzed>3 and len(plInstance.samples)<2:
             print("CONNECT 2")
-        elif plInstance.nbSampleAnalyzed<4 and len(plInstance.samples)<21:
+        elif plInstance.nbSampleAnalyzed<4 and len(plInstance.samples)<2:
             print("CONNECT 2")
         #elif plInstance.nbSampleAnalyzed > 3 and len(plInstance.samples) > 1:
         else:
