@@ -1,5 +1,27 @@
 import sys
 import math
+from random import randint
+
+class MarvinQuotes:
+    listOfQuotes=[
+        'I think you ought to know I’m feeling very depressed.',
+        'I am at a rough estimate thirty billion times more intelligent than you.',
+        'You can blame the Sirius Cybernetics Corporation for making androids with GPP…',
+        'I have a million ideas. They all point to certain death.',
+        'I could calculate your chance of survival, but you won’t like it.',
+        'how just when you think life can’t possibly get any worse it suddenly does.',
+        'I’d give you advice, but you wouldn’t listen. No one ever does',
+        'And then of course I’ve got this terrible pain in all the diodes down my left side.',
+        'Don’t pretend you want to talk to me, I know you hate me.'
+    ]
+    @staticmethod
+    def getQuote():
+        val = randint(0, 1)
+        if val == 1:
+            val = randint(0, len(MarvinQuotes.listOfQuotes) - 1)
+            return MarvinQuotes.listOfQuotes[val]
+        else:
+            return ""
 
 class Player:
     instance = None
@@ -20,27 +42,36 @@ class Player:
         return val
 
     def checkSampleStatus(self,_sample):
+
         localStorage = self.storage.copy()
         for s in self.samples:
             if s.status=="COMPLETED":
                 for c in s.cost:
                     if s.cost[c]>0:
                         localStorage[c] -= s.cost[c]+self.expertise[c]
-
         goOn = True
         for c in _sample.cost:
             if localStorage[c] < (_sample.cost[c]-self.expertise[c]):
                 goOn = False
                 break
+        status = "COMPLETED" if goOn else "INPROGRESS"
+        return status
 
-        return "COMPLETED" if goOn else "INPROGRESS"
+    def checkAllSampleStatus(self):
+        for _sample in self.samples:
+            _sample.status="INPROGRESS"
+        for i in (3,2,1):
+            for _sample in self.samples:
+                if _sample.rank == i:
+                    _sample.status = self.checkSampleStatus(_sample)
 
     def addSample(self,_sample):
-        _sample.status = self.checkSampleStatus(_sample)
-        print("bbb " + str(_sample.id) + "//" + str(_sample.status) + "//" + str(_sample.diagState) + "//"+str(_sample.cost),file=sys.stderr)
+        #_sample.status = self.checkSampleStatus(_sample)
+
         self.samples.append(_sample)
-        if _sample.status == "COMPLETED" and _sample.diagState!="NEW":
-            self.expertise[_sample.gain]+=1
+        self.checkAllSampleStatus()
+        print("bbb " + str(_sample.id) + "//" + str(_sample.status) + "//" + str(_sample.diagState) + "//" + str(
+            _sample.cost), file=sys.stderr)
 
     @staticmethod
     def getInstance():
@@ -146,6 +177,7 @@ while True:
             plInstance.target = target
             plInstance.eta = eta
             print("STORAGE " + str(plInstance.storage),file=sys.stderr)
+            print("EXPERTISE " + str(plInstance.expertise), file=sys.stderr)
 
     available_a, available_b, available_c, available_d, available_e = [int(i) for i in input().split()]
     molAvailable={'A':available_a,'B':available_b,'C':available_c,'D':available_d,'E':available_e}
@@ -187,27 +219,44 @@ while True:
 
     # Write an action using print
     # To debug: print("Debug messages...", file=sys.stderr)
+    quote = MarvinQuotes.getQuote()
     print(plInstance.target,file=sys.stderr)
     if plInstance.target == 'DIAGNOSIS':
         if plInstance.eta == 0:
             action=False
             for _sample in plInstance.samples:
-                if _sample.diagState in ("NEW","DIAGNOSED"):
-                    print("CONNECT " + str(_sample.id))
+                if _sample.diagState in ("NEW"):#,"DIAGNOSED"):
+                    print("CONNECT " + str(_sample.id) + " " + quote)
                     _sample.diagState = "DIAGNOSED" if _sample.diagState == "NEW" else "INCLOUD"
                     action = True
                     break
 
             if not action:
+                storageSize=0
+                for s in plInstance.storage:
+                    storageSize+=plInstance.storage[s]
                 if len(plInstance.samples)<3:
                     sample = SampleData.getBestSample(plInstance.samples)
                     if sample is not None:
                         print("CONNECT " + str(sample.id))
                         sample.diagState = "INCLOUD"
                     else:
-                        print("GOTO MOLECULES")
+                        print("GOTO MOLECULES " + quote)
+                elif storageSize==10:
+                    maxSize=-1
+                    sample = None
+                    for s in plInstance.samples:
+                        total=0
+                        for c in s.cost:
+                            if s.cost[c] > 0:
+                                total+=s.cost[c] - plInstance.expertise[c]
+                        if total > maxSize:
+                            maxSize=total
+                            sample=s
+                    print("CONNECT " + str(sample.id))
+
                 else:
-                    print("GOTO MOLECULES")
+                    print("GOTO MOLECULES " + quote)
         else:
             print("WAIT")
     elif plInstance.target == 'MOLECULES':
@@ -220,59 +269,109 @@ while True:
                     for c in _sample.cost:
                         listOfMoleculesToGrab[c]-=_sample.cost[c]
 
+            nbToFind=-1
+            sampleToFind = None
             for _sample in plInstance.samples:
-                print("MOL " + str(_sample.cost) + str("//") + str(_sample.id),file=sys.stderr)
                 if _sample.status != "COMPLETED":
+                    ttotal=0
                     for c in _sample.cost:
-                        if listOfMoleculesToGrab[c]<(_sample.cost[c]-plInstance.expertise[c]) and molAvailable[c]>0:
-                            print("CONNECT " + c)
-                            grabMolecule = True
-                            break
-                if grabMolecule:
-                    break
+                        if _sample.cost[c] > 0:
+                            ttotal+=_sample.cost[c] - plInstance.expertise[c]
+                    if nbToFind == -1 or ttotal < nbToFind:
+                        nbToFind = ttotal
+                        sampleToFind = _sample
+
+            if sampleToFind is not None:
+                for c in sampleToFind.cost:
+                    if listOfMoleculesToGrab[c] < (sampleToFind.cost[c] - plInstance.expertise[c]) and molAvailable[c] > 0:
+                        print("CONNECT " + c + " " + quote)
+                        grabMolecule = True
+                        break
+            if not grabMolecule:
+                for _sample in plInstance.samples:
+                   print("MOL " + str(_sample.cost) + str("//") + str(_sample.id),file=sys.stderr)
+                   if _sample.status != "COMPLETED":
+                       for c in _sample.cost:
+                           if listOfMoleculesToGrab[c]<(_sample.cost[c]-plInstance.expertise[c]) and molAvailable[c]>0:
+                               print("CONNECT " + c + " " + quote)
+                               grabMolecule = True
+                               break
+                   if grabMolecule:
+                       break
             if not grabMolecule:
                 finishedOne = False
+                finishedAll = True
                 for _sample in plInstance.samples:
                     if _sample.status == "COMPLETED":
                         finishedOne = True
-                        break
+                    else:
+                        finishedAll = False
+                if finishedAll:
+                    print("GOTO LABORATORY " + quote)
                 if finishedOne:
-                    print("GOTO LABORATORY")
+                    if target == "LABORATORY":
+                        print("WAIT TTTT" +quote)
+                    else:
+                        print("GOTO LABORATORY " + quote)
                 else:
-                    print("WAIT")
+                    print("WAIT " + quote)
         else:
-            print("GOTO LABORATORY")
+            print("GOTO LABORATORY " + quote)
     elif plInstance.target == 'LABORATORY':
         goOut=True
+        print("@@@@@@@@@@@@@@@@@",file=sys.stderr)
+        plInstance.checkAllSampleStatus()
+        #for _sample in plInstance.samples:
+        #    print("BBBB " + str(_sample.id) + "//" + str(_sample.status), file=sys.stderr)
         for _sample in plInstance.samples:
             print("$$$$ " + str(_sample.id) + "//" + str(_sample.status),file=sys.stderr)
             if _sample.status == "COMPLETED":
             #if plInstance.checkSampleStatus(_sample) == "COMPLETED":
-                print("CONNECT " + str(_sample.id))
+                print("CONNECT " + str(_sample.id) + " CHECK")
                 plInstance.nbSampleAnalyzed+=1
                 goOut=False
                 break
         if goOut:
+            if len(plInstance.samples) == 3 :
+                print("GOTO DIAGNOSIS " + quote)
             if len(plInstance.samples)>1:
-                print("GOTO MOLECULES")
-            elif SampleData.getNbFreeSample()>2:
-                print("GOTO DIAGNOSIS")
+                print("GOTO MOLECULES " + quote)
+            elif SampleData.getNbFreeSample()>=2:
+                print("GOTO DIAGNOSIS " + quote)
             else:
-                print("GOTO SAMPLES")
+                print("GOTO SAMPLES " + quote)
     elif plInstance.target == "SAMPLES":
-        if len(plInstance.samples)>2 or SampleData.getNbFreeSample()>2:
+        expertiseSize = 0
+        for e in plInstance.expertise:
+            expertiseSize+=plInstance.expertise[e]
+
+        if len(plInstance.samples) == 2:
+            print("CONNECT 1")
+        elif len(plInstance.samples) == 3:
             print ("GOTO DIAGNOSIS")
-        elif plInstance.nbSampleAnalyzed>5 and len(plInstance.samples)<1:
+        elif expertiseSize<5:
+            print("CONNECT 1")
+        elif expertiseSize>8:
             print("CONNECT 3")
-        elif plInstance.nbSampleAnalyzed > 5 and len(plInstance.samples) > 1 :
-            print("CONNECT 2")
-        elif plInstance.nbSampleAnalyzed>3 and len(plInstance.samples)<2:
-            print("CONNECT 2")
-        elif plInstance.nbSampleAnalyzed<4 and len(plInstance.samples)<2:
-            print("CONNECT 2")
-        #elif plInstance.nbSampleAnalyzed > 3 and len(plInstance.samples) > 1:
         else:
             print("CONNECT 2")
+
+
+
+
+        # if len(plInstance.samples)>2 or SampleData.getNbFreeSample()>2:
+        #     print ("GOTO DIAGNOSIS")
+        # elif plInstance.nbSampleAnalyzed>8 and len(plInstance.samples)<1:
+        #     print("CONNECT 3 " + quote)
+        # #elif plInstance.nbSampleAnalyzed > 8 and len(plInstance.samples) > 1 :
+        # #    print("CONNECT 2")
+        # elif plInstance.nbSampleAnalyzed>5 and len(plInstance.samples)<2:
+        #     print("CONNECT 2")
+        # elif plInstance.nbSampleAnalyzed<5 and len(plInstance.samples)<1:
+        #     print("CONNECT 2")
+        # #elif plInstance.nbSampleAnalyzed > 3 and len(plInstance.samples) > 1:
+        # else:
+        #     print("CONNECT 1 " + quote)
 
     elif plInstance.target == 'START_POS':
         print("GOTO SAMPLES ")
